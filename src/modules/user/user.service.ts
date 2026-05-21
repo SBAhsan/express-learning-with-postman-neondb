@@ -1,18 +1,24 @@
 import e from "express";
 import { pool } from "../../db";
 import type { IUser } from "./user.interface";
+import bcrypt from "bcrypt";
 
 const createUserInDB = async (payload: IUser) => {
   const { name, email, password, age } = payload;
 
+  const hashPassword = await bcrypt.hash(password, 10);
+//   console.log(hashPassword);
+
   const result = await pool.query(
     `
     INSERT INTO users(name, email, password, age)
-    VALUES($1, $2, $3, $4)
+    VALUES($1, $2, $3, $4) 
     RETURNING *
     `,
-    [name, email, password, age],
+    [name, email, hashPassword, age],
   );
+
+  delete result.rows[0].password;
 
   return result;
 };
@@ -21,6 +27,11 @@ const getAllUsersFromDB = async () => {
   const result = await pool.query(`
             SELECT * FROM users
             `);
+
+            for(let i = 0; i < result.rows.length; i++){
+                delete result.rows[i].password;
+            }
+            console.log(result);
   return result;
 };
 
@@ -32,6 +43,8 @@ const getSingleUserFromDB = async (id: string) => {
       [id],
     );
 
+    delete result.rows[0].password;
+
     return result;
 }
 
@@ -39,6 +52,8 @@ const getSingleUserFromDB = async (id: string) => {
 const updateUserInDB = async (id: string,payload: IUser) => {
 
     const {email, password} = payload;
+
+    const hashPassword = await bcrypt.hash(password, 10);
 
     const result = await pool.query(
       `
@@ -48,8 +63,10 @@ const updateUserInDB = async (id: string,payload: IUser) => {
 
             RETURNING *
             `,
-      [email, password, id],
+      [email, hashPassword, id],
     );
+
+    delete result.rows[0].password;
 
     return result;
 }
